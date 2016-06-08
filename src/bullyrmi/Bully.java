@@ -21,7 +21,7 @@ import java.util.Map;
 import sun.misc.IOUtils;
 
 public class Bully {
-
+    private static long startTime;
     public static String id;
     public static Map<String, String> ips;
 
@@ -36,12 +36,12 @@ public class Bully {
         String s = br.readLine();
         int a = 0;
         while (!s.equals("END")) {
-            
+
             String key = s;
             String val = br.readLine();
             ips.put(key, val);
-            if(a==0){
-                id = key; 
+            if (a == 0) {
+                id = key;
                 a++;
             }
             s = br.readLine();
@@ -53,15 +53,16 @@ public class Bully {
 
         System.out.print("Czy mam zacząć elekcję? (y/n)");
         String el = br.readLine();
-
-        if ("y".equals(el)) {
-            electionStart();
-        }
-
+        
         HttpServer server = HttpServer.create(new InetSocketAddress(8000), 0);
         server.createContext("/bully", new MyHandler());
         server.setExecutor(null); // creates a default executor
         server.start();
+        
+        if ("y".equals(el)) {
+            startTime = System.currentTimeMillis();
+            electionStart();
+        }
     }
 
     public static String excutePost(String targetURL, String urlParameters) {
@@ -102,7 +103,10 @@ public class Bully {
     static void announceLeader() throws ProtocolException {
         boolean bigger = false;
         for (String sid : ips.keySet()) {
-            excutePost("http://" + ips.get(sid) + ":8000/bully", "Jestem jebanym bosem");
+            if (!id.equals(sid)) {
+                System.err.println("Wysyłam powiadomienie do procesu o ip: " + ips.get(sid));
+                excutePost("http://" + ips.get(sid) + ":8000/bully", "Jestem bosem moje ip:" + ips.get(sid));
+            }
         }
     }
 
@@ -111,6 +115,7 @@ public class Bully {
         for (String sid : ips.keySet()) {
             if (sid.compareTo(id) > 0) {
                 String response = excutePost("http://" + ips.get(sid) + ":8000/bully", id);
+                System.err.println("Odpowiedz: " + response);
                 if (response != null) {
                     bigger = true;
                     break;
@@ -134,6 +139,10 @@ public class Bully {
             if (senderID.matches("-?\\d+(\\.\\d+)?") && id.compareTo(senderID) > 0) {
                 response = "Is bigger";
                 electionStart();
+            }else{
+                long stopTime = System.currentTimeMillis();
+                long elapsedTime = stopTime - startTime;
+                System.out.println("Czas całkowitej elekcji: " + elapsedTime);
             }
             t.sendResponseHeaders(200, response.length());
             OutputStream os = t.getResponseBody();
